@@ -15,6 +15,12 @@ const offerRouter = require("./routes/offer.route");
 const bannerRouter = require("./routes/banner.route");
 const settingsRouter = require("./routes/settings.route");
 const featureRouter = require("./routes/feature.route");
+app.get("/", (req, res) => {
+    res.status(200).json({
+        status: "success",
+        message: "BackFitFlex API is running "
+    });
+});
 app.use('/api/categories',categoryRouter);
 app.use('/api/products',productRouter);
 app.use("/api/auth", authRoute);
