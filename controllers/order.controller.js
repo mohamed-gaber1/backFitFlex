@@ -32,14 +32,19 @@ const createOrder = async (req,res)=>{
                     message: "Not enough stock",
                 })
             }
-            const itemPrice=product.price * item.quantity;
+            // قبل كل الـ loop، أو جوه كل item:
+            const unitPrice = product.discountPrice && product.discountPrice > 0 
+                ? product.discountPrice 
+                : product.price;
+
+            const itemPrice = unitPrice * item.quantity;
             totalPrice += itemPrice;
             orderItems.push({
                 product: product._id,
                 size: item.size,
                 color: item.color,
                 quantity: item.quantity,
-                price: product.price,
+                price: unitPrice,  
             });
         }
         for (const item of orderItems) {

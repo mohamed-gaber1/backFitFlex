@@ -1,12 +1,79 @@
 const Banner = require("../models/banner.model");
-const fs = require("fs");
-const path = require("path");
+const cloudinary = require("../config/cloudinary");
 
+// Extract Cloudinary public_id from image URL
+const getCloudinaryPublicId = (imageUrl) => {
+    try {
+        if (!imageUrl || !imageUrl.startsWith("http")) {
+            return null;
+        }
+
+        const url = new URL(imageUrl);
+        const uploadIndex = url.pathname.indexOf("/upload/");
+
+        if (uploadIndex === -1) {
+            return null;
+        }
+
+        let publicId = url.pathname.substring(
+            uploadIndex + "/upload/".length
+        );
+
+        // Remove Cloudinary version
+        publicId = publicId.replace(/^v\d+\//, "");
+
+        // Remove file extension
+        publicId = publicId.replace(/\.[^/.]+$/, "");
+
+        return publicId;
+    } catch (err) {
+        console.log(
+            "Cannot extract Cloudinary public_id:",
+            err.message
+        );
+
+        return null;
+    }
+};
+
+// Delete image from Cloudinary
+const deleteCloudinaryImage = async (imageUrl) => {
+    try {
+        const publicId = getCloudinaryPublicId(imageUrl);
+
+        if (!publicId) {
+            return;
+        }
+
+        const result = await cloudinary.uploader.destroy(publicId, {
+            resource_type: "image",
+        });
+
+        console.log(
+            `Cloudinary delete: ${publicId}`,
+            result.result
+        );
+    } catch (err) {
+        console.log(
+            "Cannot delete banner image from Cloudinary:",
+            err.message
+        );
+    }
+};
+
+
+// Create Banner
 const createBanner = async (req, res) => {
     try {
-        if (req.file) {
-            req.body.image = req.file.filename;
+        if (!req.file) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Please upload a banner image",
+            });
         }
+
+        // Cloudinary image URL
+        req.body.image = req.file.path;
 
         const banner = await Banner.create(req.body);
 
@@ -14,7 +81,6 @@ const createBanner = async (req, res) => {
             status: "success",
             data: banner,
         });
-
     } catch (err) {
         res.status(500).json({
             status: "error",
@@ -22,9 +88,11 @@ const createBanner = async (req, res) => {
         });
     }
 };
+
+
+// Get All Banners
 const getAllBanners = async (req, res) => {
     try {
-
         const banners = await Banner.find({}, { __v: 0 });
 
         res.status(200).json({
@@ -32,7 +100,6 @@ const getAllBanners = async (req, res) => {
             results: banners.length,
             data: banners,
         });
-
     } catch (err) {
         res.status(500).json({
             status: "error",
@@ -40,9 +107,11 @@ const getAllBanners = async (req, res) => {
         });
     }
 };
+
+
+// Delete Banner
 const deleteBanner = async (req, res) => {
     try {
-
         const banner = await Banner.findById(req.params.bannerId);
 
         if (!banner) {
@@ -52,29 +121,18 @@ const deleteBanner = async (req, res) => {
             });
         }
 
+        // Delete image from Cloudinary
         if (banner.image) {
-            const imagePath = path.join(
-                __dirname,
-                "..",
-                "uploads",
-                "banners",
-                banner.image
-            );
-
-            try {
-                await fs.promises.unlink(imagePath);
-            } catch (err) {
-                console.log("Cannot delete banner image");
-            }
+            await deleteCloudinaryImage(banner.image);
         }
 
+        // Delete banner from MongoDB
         await Banner.findByIdAndDelete(req.params.bannerId);
 
         res.status(200).json({
             status: "success",
             message: "Banner deleted successfully",
         });
-
     } catch (err) {
         res.status(500).json({
             status: "error",
@@ -82,6 +140,8 @@ const deleteBanner = async (req, res) => {
         });
     }
 };
+
+
 module.exports = {
     createBanner,
     getAllBanners,

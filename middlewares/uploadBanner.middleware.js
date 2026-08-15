@@ -1,21 +1,26 @@
 const multer = require("multer");
+const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const cloudinary = require("../config/cloudinary");
 
-const storage = multer.diskStorage({
-    destination(req, file, cb) {
-        cb(null, "uploads/banners");
+const storage = new CloudinaryStorage({
+    cloudinary,
+    params: {
+        folder: "FitFlex/banners",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
     },
-    filename(req, file, cb) {
-        const ext = file.mimetype.split("/")[1];
-        cb(null, `banner-${Date.now()}.${ext}`);
-    }
 });
 
 const fileFilter = (req, file, cb) => {
-    if (file.mimetype.startsWith("image")) cb(null, true);
-    else cb(new Error("Only images"), false);
+    if (file.mimetype.startsWith("image/")) {
+        cb(null, true);
+    } else {
+        cb(new Error("Only images are allowed"), false);
+    }
 };
 
-module.exports = multer({
+const upload = multer({
     storage,
-    fileFilter
+    fileFilter,
 });
+
+module.exports = upload;
